@@ -1,0 +1,30 @@
+{% extends 'base.html.twig' %}
+
+{% block title 'Tous nos films' %}
+
+{% block body %}
+
+<div class="jumbotron">
+  {{ form_start(form)}}
+  <div class="form-row">
+    <div class="col">
+        {{ form_row(form.genre) }}
+    </div>
+    <div class="col">
+    </div>
+  </div>
+  {{ form_end(form)}}
+</div>
+
+  <div class="container mt-4">
+    <h1>Voir tous nos films</h1>
+      <div class="row mt-4">
+        {% for film in films %}
+          {% include 'films/_films.html.twig' %}
+        {% endfor %}
+      </div>
+      <ul class="pagination mt-4">
+          {{ knp_pagination_render(films) }}
+      </ul>
+  </div>
+{% endblock %}

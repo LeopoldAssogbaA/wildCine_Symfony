@@ -1,0 +1,12 @@
+<div class="col-3">
+  <div class="card">
+    <div class="card-body">
+      <h5 class="card-title">
+        <a href="{{ path('films.show', {id: film.id, slug: film.slug}) }}">{{ film.titre }}</a>
+      </h5>
+      <p class="card-text"> De: {{ film.realisateur }}</p>
+      <p>Avec: {{ film.acteurs }} </p>
+      <p> Genre: {{ film.genreType }} </p>
+    </div>
+  </div>
+</div>

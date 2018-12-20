@@ -1,0 +1,30 @@
+{% extends 'base.html.twig' %}
+
+{% block title 'Wild Cine' %}
+
+{% block body %}
+  <div class="jumbotron text-center">
+    <h1>Wild Ciné</h1>
+    <p>Lorem ipsum dolor sit amet, consectetur adipisicing elit. Assumenda aut cumque dolore error expedita itaque iure iusto magni, molestiae numquam omnis provident quae repellat sint soluta tempora unde voluptate voluptatibus.</p>
+  </div>
+
+  <div class="container">
+    <h2>Les Derniers Films</h2>
+    <div class="row flex">
+      {% for films in film %}
+        <div class="col-3">
+          <div class="card">
+            <div class="card-body">
+              <h5 class="card-title">
+                <a href="{{ path('films.show', {id: films.id, slug: films.slug}) }}">{{ films.titre }}</a>
+              </h5>
+              <p class="card-text"> De: {{ films.realisateur }}</p>
+              <p>Avec: {{ films.acteurs }} </p>
+              <p> Genre: {{ films.genreType }} </p>
+            </div>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+{% endblock %}
