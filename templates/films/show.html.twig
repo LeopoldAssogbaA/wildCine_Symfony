@@ -7,7 +7,9 @@
     <div class="container">
       <div class="row">
         <div class="col-md-8">
-
+          {% if films.imageName %}
+            <img src="/images/films/{{ films.imageName }}" alt="card-img-top" style="height: 100%; width:auto;">
+          {% endif %}
         </div>
         <div class="col-md-4">
           <h1>{{ films.titre }}</h1>

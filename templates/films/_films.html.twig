@@ -1,5 +1,8 @@
 <div class="col-3">
   <div class="card">
+    {% if film.imageName %}
+        <img src="/images/films/{{ film.imageName }}" class="card-img-top" style="height:100%;width:auto;">
+    {% endif %}
     <div class="card-body">
       <h5 class="card-title">
         <a href="{{ path('films.show', {id: film.id, slug: film.slug}) }}">{{ film.titre }}</a>

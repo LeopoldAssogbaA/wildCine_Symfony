@@ -14,6 +14,9 @@
       {% for films in film %}
         <div class="col-3">
           <div class="card">
+            {% if films.imageName %}
+                <img src="/images/films/{{ films.imageName }}" class="card-img-top" style="height:100%;width:auto;">
+            {% endif %}
             <div class="card-body">
               <h5 class="card-title">
                 <a href="{{ path('films.show', {id: films.id, slug: films.slug}) }}">{{ films.titre }}</a>
