@@ -24,3 +24,8 @@ modifier la ligne 18 >> DATABASE_URL=mysql://VOTREUSER:VOTREMOTDEPASSE@127.0.0.1
 8. Ouvrir la console et se placer dans le repertoire du dossier wildCine_Symfony et executer la commande php bin/console server:run Ouvrir le navigateur à l'adresse localhost:8000
 
 Merci
+
+CodeWars: 
+
+Lien vers ma solution: https://www.codewars.com/kata/reviews/554245a044e65ac10f00006b/groups/583483375961c22a4f0003fd
+Lien vers mon profil: https://www.codewars.com/users/L%C3%A9opold%20/completed
