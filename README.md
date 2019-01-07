@@ -3,18 +3,23 @@ wildCine_Symfony
 auteur: Léopold Assogba
 
 //Téléchargement du projet
+
 1. Télécharger/cloner le projet "wildCine_Symfony" et décompresser le dossier dans le repertoire  /www de wamp64 ou répertoire équivalent pour xamp ou manp
 
 //Initialisation de la base de données via "phpMyAdmin"
+
 2. Ouvrir phpMyAdmin créer une nouvelle base de données: éxecuter le fichier "createdb.sql" puis éxecuter le fichier "films.sql" pour insérer les données
 
 //Lancer le server
+
 3. Ouvrir la console se placer dans le repertoire du projet et lancer la commande "php bin/console server:run"
 
 //Se rendre sur la page d'accueil du site
+
 4. Ouvrir le navigateur à l'adresse inscrite dans la console (normalement 127.0.0.1:8000 ou localhost:8000)
 
 //Fin
+
 5. Parcourez le site créé par mes soins.
 
 
