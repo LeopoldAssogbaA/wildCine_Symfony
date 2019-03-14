@@ -15,10 +15,11 @@ class ProjectUrlMatcher extends Symfony\Component\Routing\Matcher\UrlMatcher
         $this->context = $context;
     }
 
-    public function match($rawPathinfo)
+    public function match($pathinfo)
     {
-        $allow = $allowSchemes = array();
-        $pathinfo = rawurldecode($rawPathinfo);
+        $allow = $allowSchemes = [];
+        $pathinfo = rawurldecode($pathinfo) ?: '/';
+        $trimmedPathinfo = rtrim($pathinfo, '/') ?: '/';
         $context = $this->context;
         $requestMethod = $canonicalMethod = $context->getMethod();
         $host = strtolower($context->getHost());
@@ -28,27 +29,37 @@ class ProjectUrlMatcher extends Symfony\Component\Routing\Matcher\UrlMatcher
         }
 
         $matchedPathinfo = $host.'.'.$pathinfo;
-        $regexList = array(
+        $regexList = [
             0 => '{^(?'
                 .'|(?i:([^\\.]++)\\.exampple\\.com)\\.(?'
                     .'|/abc([^/]++)(?'
                         .'|(*:56)'
                     .')'
                 .')'
-                .')$}sD',
-        );
+                .')/?$}sD',
+        ];
 
         foreach ($regexList as $offset => $regex) {
             while (preg_match($regex, $matchedPathinfo, $matches)) {
                 switch ($m = (int) $matches['MARK']) {
                     case 56:
-                        $matches = array('foo' => $matches[1] ?? null, 'foo' => $matches[2] ?? null);
-
                         // r1
-                        return $this->mergeDefaults(array('_route' => 'r1') + $matches, array());
+                        if ($trimmedPathinfo !== $pathinfo) {
+                            goto not_r1;
+                        }
+
+                        $matches = ['foo' => $matches[1] ?? null, 'foo' => $matches[2] ?? null];
+
+                        return $this->mergeDefaults(['_route' => 'r1'] + $matches, []);
+                        not_r1:
 
                         // r2
-                        return $this->mergeDefaults(array('_route' => 'r2') + $matches, array());
+                        if ($trimmedPathinfo !== $pathinfo) {
+                            goto not_r2;
+                        }
+
+                        return $this->mergeDefaults(['_route' => 'r2'] + $matches, []);
+                        not_r2:
 
                         break;
                 }

@@ -15,10 +15,11 @@ class ProjectUrlMatcher extends Symfony\Component\Routing\Matcher\UrlMatcher
         $this->context = $context;
     }
 
-    public function match($rawPathinfo)
+    public function match($pathinfo)
     {
-        $allow = $allowSchemes = array();
-        $pathinfo = rawurldecode($rawPathinfo);
+        $allow = $allowSchemes = [];
+        $pathinfo = rawurldecode($pathinfo) ?: '/';
+        $trimmedPathinfo = rtrim($pathinfo, '/') ?: '/';
         $context = $this->context;
         $requestMethod = $canonicalMethod = $context->getMethod();
         $host = strtolower($context->getHost());
@@ -27,20 +28,23 @@ class ProjectUrlMatcher extends Symfony\Component\Routing\Matcher\UrlMatcher
             $canonicalMethod = 'GET';
         }
 
-        switch ($pathinfo) {
+        switch ($trimmedPathinfo) {
             case '/':
                 // a
                 if (preg_match('#^(?P<d>[^\\.]++)\\.e\\.c\\.b\\.a$#sDi', $host, $hostMatches)) {
-                    return $this->mergeDefaults(array('_route' => 'a') + $hostMatches, array());
+                    return $this->mergeDefaults(['_route' => 'a'] + $hostMatches, []);
                 }
+                not_a:
                 // c
                 if (preg_match('#^(?P<e>[^\\.]++)\\.e\\.c\\.b\\.a$#sDi', $host, $hostMatches)) {
-                    return $this->mergeDefaults(array('_route' => 'c') + $hostMatches, array());
+                    return $this->mergeDefaults(['_route' => 'c'] + $hostMatches, []);
                 }
+                not_c:
                 // b
                 if ('d.c.b.a' === $host) {
-                    return array('_route' => 'b');
+                    return ['_route' => 'b'];
                 }
+                not_b:
                 break;
         }
 

@@ -11,6 +11,7 @@
 
 namespace Symfony\Bundle\MakerBundle;
 
+use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Bundle\MakerBundle\Exception\RuntimeCommandException;
 use Symfony\Bundle\MakerBundle\Util\ClassNameDetails;
 
@@ -84,6 +85,22 @@ class Generator
         ];
     }
 
+    public function getFileContentsForPendingOperation(string $targetPath): string
+    {
+        if (!isset($this->pendingOperations[$targetPath])) {
+            throw new RuntimeCommandException(sprintf('File "%s" is not in the Generator\'s pending operations', $targetPath));
+        }
+
+        $templatePath = $this->pendingOperations[$targetPath]['template'];
+        $parameters = $this->pendingOperations[$targetPath]['variables'];
+
+        $templateParameters = array_merge($parameters, [
+            'relative_path' => $this->fileManager->relativizePath($targetPath),
+        ]);
+
+        return $this->fileManager->parseTemplate($templatePath, $templateParameters);
+    }
+
     /**
      * Creates a helper object to get data about a class name.
      *
@@ -135,6 +152,11 @@ class Generator
         return new ClassNameDetails($className, $fullNamespacePrefix, $suffix);
     }
 
+    public function getRootDirectory(): string
+    {
+        return $this->fileManager->getRootDirectory();
+    }
+
     private function addOperation(string $targetPath, string $templateName, array $variables)
     {
         if ($this->fileManager->fileExists($targetPath)) {
@@ -178,15 +200,10 @@ class Generator
                 continue;
             }
 
-            $templatePath = $templateData['template'];
-            $parameters = $templateData['variables'];
-
-            $templateParameters = array_merge($parameters, [
-                'relative_path' => $this->fileManager->relativizePath($targetPath),
-            ]);
-
-            $fileContents = $this->fileManager->parseTemplate($templatePath, $templateParameters);
-            $this->fileManager->dumpFile($targetPath, $fileContents);
+            $this->fileManager->dumpFile(
+                $targetPath,
+                $this->getFileContentsForPendingOperation($targetPath, $templateData)
+            );
         }
 
         $this->pendingOperations = [];
@@ -195,5 +212,17 @@ class Generator
     public function getRootNamespace(): string
     {
         return $this->namespacePrefix;
+    }
+
+    public function generateController(string $controllerClassName, string $controllerTemplatePath, array $parameters = []): string
+    {
+        return $this->generateClass(
+            $controllerClassName,
+            $controllerTemplatePath,
+            $parameters +
+            [
+                'parent_class_name' => method_exists(AbstractController::class, 'getParameter') ? 'AbstractController' : 'Controller',
+            ]
+        );
     }
 }

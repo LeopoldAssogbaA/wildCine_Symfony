@@ -1,3 +1,46 @@
+1.11
+====
+
+* Add `make:registration-form` command - #333 thanks to @weaverryan
+
+1.10
+====
+
+* Add `make:serializer:normalizer` command - #298 thanks
+    to @lyrixx
+
+* Add a `--no-template` option to `make:controller` to skip
+    generating a template - #280 thanks to @welcoMattic
+
+* Add support for rendering additional date types in make:crud
+    - #241 thanks to @sadikoff
+
+* Better errors when trying to use reserved words for classes
+    - #306 thanks to @SerkanYildiz
+
+1.9
+===
+
+* Allow make:form to work with non-entities - #301 thanks to @ckrack
+
+1.8
+===
+
+* make:auth can now generate an entire form login system with
+  authenticator, login form and controller! #266 thanks to @nikophil
+
+* make:auth now registers your guard authenticator in your security.yaml
+  file automatically - #261 thanks to @nikophil
+
+* Generate more explicit voter attribute names - #283 thanks to @lyrixx
+
+* Fixing incorrect dependency for make:crud - #256 thanks to @ckrack
+
+* Fix self-referencing relation issue - #278 thanks to @codedmonkey
+
+* Fix edge-case bad template name in make:crud - #286 thanks
+  to @thlbaut
+
 1.7
 ===
 

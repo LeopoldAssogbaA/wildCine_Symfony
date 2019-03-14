@@ -112,7 +112,7 @@ class Downloader
             if ($date = $package->getReleaseDate()) {
                 $path .= ','.$date->format('U');
             }
-            if (strlen($chunk) + strlen($path) > self::$MAX_LENGTH) {
+            if (\strlen($chunk) + \strlen($path) > self::$MAX_LENGTH) {
                 $paths[] = ['/p/'.$chunk];
                 $chunk = $path;
             } elseif ($chunk) {
@@ -140,9 +140,6 @@ class Downloader
         foreach ($bodies as $body) {
             foreach ($body['manifests'] as $name => $manifest) {
                 $data['manifests'][$name] = $manifest;
-            }
-            foreach ($body['vulnerabilities'] as $name => $vulns) {
-                $data['vulnerabilities'][$name] = $vulns;
             }
             foreach ($body['locks'] ?? [] as $name => $lock) {
                 $data['locks'][$name] = $lock;

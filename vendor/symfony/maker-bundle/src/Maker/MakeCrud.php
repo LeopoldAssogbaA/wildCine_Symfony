@@ -13,12 +13,13 @@ namespace Symfony\Bundle\MakerBundle\Maker;
 
 use Doctrine\Bundle\DoctrineBundle\DoctrineBundle;
 use Doctrine\Common\Inflector\Inflector;
-use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Sensio\Bundle\FrameworkExtraBundle\Configuration\ParamConverter;
 use Symfony\Bundle\MakerBundle\ConsoleStyle;
 use Symfony\Bundle\MakerBundle\DependencyBuilder;
 use Symfony\Bundle\MakerBundle\Doctrine\DoctrineHelper;
 use Symfony\Bundle\MakerBundle\Generator;
 use Symfony\Bundle\MakerBundle\InputConfiguration;
+use Symfony\Bundle\MakerBundle\Renderer\FormTypeRenderer;
 use Symfony\Bundle\MakerBundle\Str;
 use Symfony\Bundle\MakerBundle\Validator;
 use Symfony\Bundle\TwigBundle\TwigBundle;
@@ -38,9 +39,12 @@ final class MakeCrud extends AbstractMaker
 {
     private $doctrineHelper;
 
-    public function __construct(DoctrineHelper $doctrineHelper)
+    private $formTypeRenderer;
+
+    public function __construct(DoctrineHelper $doctrineHelper, FormTypeRenderer $formTypeRenderer)
     {
         $this->doctrineHelper = $doctrineHelper;
+        $this->formTypeRenderer = $formTypeRenderer;
     }
 
     public static function getCommandName(): string
@@ -104,7 +108,7 @@ final class MakeCrud extends AbstractMaker
         }
 
         $controllerClassDetails = $generator->createClassNameDetails(
-            $entityClassDetails->getRelativeNameWithoutSuffix(),
+            $entityClassDetails->getRelativeNameWithoutSuffix().'Controller',
             'Controller\\',
             'Controller'
         );
@@ -112,7 +116,7 @@ final class MakeCrud extends AbstractMaker
         $iter = 0;
         do {
             $formClassDetails = $generator->createClassNameDetails(
-                $entityClassDetails->getRelativeNameWithoutSuffix().($iter ?: ''),
+                $entityClassDetails->getRelativeNameWithoutSuffix().($iter ?: '').'Type',
                 'Form\\',
                 'Type'
             );
@@ -126,18 +130,19 @@ final class MakeCrud extends AbstractMaker
         $entityTwigVarSingular = Str::asTwigVariable($entityVarSingular);
 
         $routeName = Str::asRouteName($controllerClassDetails->getRelativeNameWithoutSuffix());
+        $templatesPath = Str::asFilePath($controllerClassDetails->getRelativeNameWithoutSuffix());
 
-        $generator->generateClass(
+        $generator->generateController(
             $controllerClassDetails->getFullName(),
             'crud/controller/Controller.tpl.php',
             array_merge([
-                    'parent_class_name' => \method_exists(AbstractController::class, 'getParameter') ? 'AbstractController' : 'Controller',
                     'entity_full_class_name' => $entityClassDetails->getFullName(),
                     'entity_class_name' => $entityClassDetails->getShortName(),
                     'form_full_class_name' => $formClassDetails->getFullName(),
                     'form_class_name' => $formClassDetails->getShortName(),
                     'route_path' => Str::asRoutePath($controllerClassDetails->getRelativeNameWithoutSuffix()),
                     'route_name' => $routeName,
+                    'templates_path' => $templatesPath,
                     'entity_var_plural' => $entityVarPlural,
                     'entity_twig_var_plural' => $entityTwigVarPlural,
                     'entity_var_singular' => $entityVarSingular,
@@ -148,17 +153,11 @@ final class MakeCrud extends AbstractMaker
             )
         );
 
-        $generator->generateClass(
-            $formClassDetails->getFullName(),
-            'form/Type.tpl.php',
-            [
-                'bounded_full_class_name' => $entityClassDetails->getFullName(),
-                'bounded_class_name' => $entityClassDetails->getShortName(),
-                'form_fields' => $entityDoctrineDetails->getFormFields(),
-            ]
+        $this->formTypeRenderer->render(
+            $formClassDetails,
+            $entityDoctrineDetails->getFormFields(),
+            $entityClassDetails
         );
-
-        $templatesPath = Str::asFilePath($controllerClassDetails->getRelativeNameWithoutSuffix());
 
         $templates = [
             '_delete_form' => [
@@ -216,7 +215,7 @@ final class MakeCrud extends AbstractMaker
     {
         $dependencies->addClassDependency(
             Route::class,
-            'annotations'
+            'router'
         );
 
         $dependencies->addClassDependency(
@@ -242,6 +241,11 @@ final class MakeCrud extends AbstractMaker
         $dependencies->addClassDependency(
             CsrfTokenManager::class,
             'security-csrf'
+        );
+
+        $dependencies->addClassDependency(
+            ParamConverter::class,
+            'annotations'
         );
     }
 }

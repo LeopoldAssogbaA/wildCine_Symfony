@@ -12,11 +12,13 @@
 namespace Symfony\Bundle\MakerBundle\Doctrine;
 
 use Doctrine\Common\Persistence\Mapping\AbstractClassMetadataFactory;
+use Doctrine\Common\Persistence\Mapping\Driver\AnnotationDriver;
 use Doctrine\Common\Persistence\Mapping\Driver\MappingDriver;
 use Doctrine\Common\Persistence\Mapping\Driver\MappingDriverChain;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\Common\Persistence\Mapping\ClassMetadata;
-use Doctrine\ORM\Mapping\MappingException;
+use Doctrine\ORM\Mapping\MappingException as ORMMappingException;
+use Doctrine\Common\Persistence\Mapping\MappingException as PersistenceMappingException;
 use Doctrine\ORM\Tools\DisconnectedClassMetadataFactory;
 use Symfony\Bridge\Doctrine\ManagerRegistry;
 use Symfony\Bundle\MakerBundle\Util\ClassNameDetails;
@@ -132,7 +134,9 @@ final class DoctrineHelper
             if ($disconnected) {
                 try {
                     $loaded = $cmf->getAllMetadata();
-                } catch (MappingException $e) {
+                } catch (ORMMappingException $e) {
+                    $loaded = $cmf instanceof AbstractClassMetadataFactory ? $cmf->getLoadedMetadata() : [];
+                } catch (PersistenceMappingException $e) {
                     $loaded = $cmf instanceof AbstractClassMetadataFactory ? $cmf->getLoadedMetadata() : [];
                 }
 
@@ -141,6 +145,19 @@ final class DoctrineHelper
 
                 foreach ($loaded as $m) {
                     $cmf->setMetadataFor($m->getName(), $m);
+                }
+
+                // Invalidating the cached AnnotationDriver::$classNames to find new Entity classes
+                $metadataDriver = $em->getConfiguration()->getMetadataDriverImpl();
+                if ($metadataDriver instanceof MappingDriverChain) {
+                    foreach ($metadataDriver->getDrivers() as $driver) {
+                        if ($driver instanceof AnnotationDriver) {
+                            $classNames = (new \ReflectionObject($driver))->getProperty('classNames');
+                            $classNames->setAccessible(true);
+                            $classNames->setValue($driver, null);
+                            $classNames->setAccessible(false);
+                        }
+                    }
                 }
             }
 
@@ -176,5 +193,14 @@ final class DoctrineHelper
         }
 
         return null;
+    }
+
+    public function isClassAMappedEntity(string $className): bool
+    {
+        if (!$this->isDoctrineInstalled()) {
+            return false;
+        }
+
+        return (bool) $this->getMetadata($className);
     }
 }

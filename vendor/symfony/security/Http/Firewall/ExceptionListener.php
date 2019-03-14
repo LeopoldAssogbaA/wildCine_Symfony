@@ -17,6 +17,7 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Event\GetResponseForExceptionEvent;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 use Symfony\Component\HttpKernel\HttpKernelInterface;
 use Symfony\Component\HttpKernel\KernelEvents;
 use Symfony\Component\Security\Core\Authentication\AuthenticationTrustResolverInterface;
@@ -70,7 +71,7 @@ class ExceptionListener
      */
     public function register(EventDispatcherInterface $dispatcher)
     {
-        $dispatcher->addListener(KernelEvents::EXCEPTION, array($this, 'onKernelException'), 1);
+        $dispatcher->addListener(KernelEvents::EXCEPTION, [$this, 'onKernelException'], 1);
     }
 
     /**
@@ -78,7 +79,7 @@ class ExceptionListener
      */
     public function unregister(EventDispatcherInterface $dispatcher)
     {
-        $dispatcher->removeListener(KernelEvents::EXCEPTION, array($this, 'onKernelException'));
+        $dispatcher->removeListener(KernelEvents::EXCEPTION, [$this, 'onKernelException']);
     }
 
     /**
@@ -101,7 +102,7 @@ class ExceptionListener
     private function handleAuthenticationException(GetResponseForExceptionEvent $event, AuthenticationException $exception): void
     {
         if (null !== $this->logger) {
-            $this->logger->info('An AuthenticationException was thrown; redirecting to authentication entry point.', array('exception' => $exception));
+            $this->logger->info('An AuthenticationException was thrown; redirecting to authentication entry point.', ['exception' => $exception]);
         }
 
         try {
@@ -119,7 +120,7 @@ class ExceptionListener
         $token = $this->tokenStorage->getToken();
         if (!$this->authenticationTrustResolver->isFullFledged($token)) {
             if (null !== $this->logger) {
-                $this->logger->debug('Access denied, the user is not fully authenticated; redirecting to authentication entry point.', array('exception' => $exception));
+                $this->logger->debug('Access denied, the user is not fully authenticated; redirecting to authentication entry point.', ['exception' => $exception]);
             }
 
             try {
@@ -135,7 +136,7 @@ class ExceptionListener
         }
 
         if (null !== $this->logger) {
-            $this->logger->debug('Access denied, the user is neither anonymous, nor remember-me.', array('exception' => $exception));
+            $this->logger->debug('Access denied, the user is neither anonymous, nor remember-me.', ['exception' => $exception]);
         }
 
         try {
@@ -154,7 +155,7 @@ class ExceptionListener
             }
         } catch (\Exception $e) {
             if (null !== $this->logger) {
-                $this->logger->error('An exception was thrown when handling an AccessDeniedException.', array('exception' => $e));
+                $this->logger->error('An exception was thrown when handling an AccessDeniedException.', ['exception' => $e]);
             }
 
             $event->setException(new \RuntimeException('Exception thrown when handling an exception.', 0, $e));
@@ -164,14 +165,14 @@ class ExceptionListener
     private function handleLogoutException(LogoutException $exception): void
     {
         if (null !== $this->logger) {
-            $this->logger->info('A LogoutException was thrown.', array('exception' => $exception));
+            $this->logger->info('A LogoutException was thrown.', ['exception' => $exception]);
         }
     }
 
     private function startAuthentication(Request $request, AuthenticationException $authException): Response
     {
         if (null === $this->authenticationEntryPoint) {
-            throw $authException;
+            throw new HttpException(Response::HTTP_UNAUTHORIZED, $authException->getMessage(), $authException, [], $authException->getCode());
         }
 
         if (null !== $this->logger) {
@@ -187,7 +188,7 @@ class ExceptionListener
             $this->tokenStorage->setToken(null);
 
             if (null !== $this->logger) {
-                $this->logger->info('The security token was removed due to an AccountStatusException.', array('exception' => $authException));
+                $this->logger->info('The security token was removed due to an AccountStatusException.', ['exception' => $authException]);
             }
         }
 

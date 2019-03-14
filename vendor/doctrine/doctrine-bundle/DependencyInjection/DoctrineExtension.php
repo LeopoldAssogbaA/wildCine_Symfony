@@ -6,9 +6,13 @@ use Doctrine\Bundle\DoctrineBundle\DependencyInjection\Compiler\ServiceRepositor
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepositoryInterface;
 use Doctrine\Bundle\DoctrineCacheBundle\DependencyInjection\CacheProviderLoader;
 use Doctrine\Bundle\DoctrineCacheBundle\DependencyInjection\SymfonyBridgeAdapter;
+use Doctrine\Common\Persistence\Mapping\ClassMetadataFactory;
 use Doctrine\ORM\Version;
+use LogicException;
 use Symfony\Bridge\Doctrine\DependencyInjection\AbstractDoctrineExtension;
 use Symfony\Bridge\Doctrine\Form\Type\DoctrineType;
+use Symfony\Bridge\Doctrine\Messenger\DoctrineTransactionMiddleware;
+use Symfony\Bridge\Doctrine\PropertyInfo\DoctrineExtractor;
 use Symfony\Component\Config\FileLocator;
 use Symfony\Component\DependencyInjection\Alias;
 use Symfony\Component\DependencyInjection\ChildDefinition;
@@ -20,6 +24,7 @@ use Symfony\Component\DependencyInjection\Loader\XmlFileLoader;
 use Symfony\Component\DependencyInjection\Reference;
 use Symfony\Component\DependencyInjection\ServiceLocator;
 use Symfony\Component\Form\AbstractType;
+use Symfony\Component\Messenger\MessageBusInterface;
 
 /**
  * DoctrineExtension is an extension for the Doctrine DBAL and ORM library.
@@ -56,11 +61,11 @@ class DoctrineExtension extends AbstractDoctrineExtension
         }
 
         if (empty($config['dbal'])) {
-            throw new \LogicException('Configuring the ORM layer requires to configure the DBAL layer as well.');
+            throw new LogicException('Configuring the ORM layer requires to configure the DBAL layer as well.');
         }
 
         if (! class_exists('Doctrine\ORM\Version')) {
-            throw new \LogicException('To configure the ORM layer, you must first install the doctrine/orm package.');
+            throw new LogicException('To configure the ORM layer, you must first install the doctrine/orm package.');
         }
 
         $this->ormLoad($config['orm'], $container);
@@ -175,8 +180,7 @@ class DoctrineExtension extends AbstractDoctrineExtension
                 new Reference(sprintf('doctrine.dbal.%s_connection.configuration', $name)),
                 new Reference(sprintf('doctrine.dbal.%s_connection.event_manager', $name)),
                 $connection['mapping_types'],
-            ])
-        ;
+            ]);
 
         // Set class in case "wrapper_class" option was used to assist IDEs
         if (isset($options['wrapperClass'])) {
@@ -246,6 +250,7 @@ class DoctrineExtension extends AbstractDoctrineExtension
                 'master' => true,
                 'shards' => true,
                 'serverVersion' => true,
+                'defaultTableOptions' => true,
                 // included by safety but should have been unset already
                 'logging' => true,
                 'profiling' => true,
@@ -280,6 +285,7 @@ class DoctrineExtension extends AbstractDoctrineExtension
                 'global' => true,
                 'shards' => true,
                 'serverVersion' => true,
+                'defaultTableOptions' => true,
                 // included by safety but should have been unset already
                 'logging' => true,
                 'profiling' => true,
@@ -386,6 +392,12 @@ class DoctrineExtension extends AbstractDoctrineExtension
         if (method_exists($container, 'registerForAutoconfiguration')) {
             $container->registerForAutoconfiguration(ServiceEntityRepositoryInterface::class)
                 ->addTag(ServiceRepositoryCompilerPass::REPOSITORY_SERVICE_TAG);
+        }
+
+        // If the Messenger component is installed and the doctrine transaction middleware is available, wire it:
+        if (interface_exists(MessageBusInterface::class) && class_exists(DoctrineTransactionMiddleware::class)) {
+            $loader = new XmlFileLoader($container, new FileLocator(__DIR__ . '/../Resources/config'));
+            $loader->load('messenger.xml');
         }
 
         /*
@@ -507,8 +519,7 @@ class DoctrineExtension extends AbstractDoctrineExtension
         $container
             ->setDefinition($managerConfiguratorName, new $definitionClassname('doctrine.orm.manager_configurator.abstract'))
             ->replaceArgument(0, $enabledFilters)
-            ->replaceArgument(1, $filtersParameters)
-        ;
+            ->replaceArgument(1, $filtersParameters);
 
         if (! isset($entityManager['connection'])) {
             $entityManager['connection'] = $this->defaultConnection;
@@ -521,8 +532,7 @@ class DoctrineExtension extends AbstractDoctrineExtension
                 new Reference(sprintf('doctrine.dbal.%s_connection', $entityManager['connection'])),
                 new Reference(sprintf('doctrine.orm.%s_configuration', $entityManager['name'])),
             ])
-            ->setConfigurator([new Reference($managerConfiguratorName), 'configure'])
-        ;
+            ->setConfigurator([new Reference($managerConfiguratorName), 'configure']);
 
         $container->setAlias(
             sprintf('doctrine.orm.%s_entity_manager.event_manager', $entityManager['name']),
@@ -564,6 +574,10 @@ class DoctrineExtension extends AbstractDoctrineExtension
      * 1. Specify a bundle and optionally details where the entity and mapping information reside.
      * 2. Specify an arbitrary mapping location.
      *
+     * @param array            $entityManager A configured ORM entity manager
+     * @param Definition       $ormConfigDef  A Definition instance
+     * @param ContainerBuilder $container     A ContainerBuilder instance
+     *
      * @example
      *
      *  doctrine.orm:
@@ -584,10 +598,6 @@ class DoctrineExtension extends AbstractDoctrineExtension
      *
      * In the case of bundles everything is really optional (which leads to autodetection for this bundle) but
      * in the mappings key everything except alias is a required argument.
-     *
-     * @param array            $entityManager A configured ORM entity manager
-     * @param Definition       $ormConfigDef  A Definition instance
-     * @param ContainerBuilder $container     A ContainerBuilder instance
      */
     protected function loadOrmEntityManagerMappingInformation(array $entityManager, Definition $ormConfigDef, ContainerBuilder $container)
     {
@@ -603,6 +613,10 @@ class DoctrineExtension extends AbstractDoctrineExtension
 
     /**
      * Loads an ORM second level cache bundle mapping information.
+     *
+     * @param array            $entityManager A configured ORM entity manager
+     * @param Definition       $ormConfigDef  A Definition instance
+     * @param ContainerBuilder $container     A ContainerBuilder instance
      *
      * @example
      *  entity_managers:
@@ -624,10 +638,6 @@ class DoctrineExtension extends AbstractDoctrineExtension
      *                      lifetime: 600
      *                      cache_driver:
      *                          type: apc
-     *
-     * @param array            $entityManager A configured ORM entity manager
-     * @param Definition       $ormConfigDef  A Definition instance
-     * @param ContainerBuilder $container     A ContainerBuilder instance
      */
     protected function loadOrmSecondLevelCache(array $entityManager, Definition $ormConfigDef, ContainerBuilder $container)
     {
@@ -788,17 +798,22 @@ class DoctrineExtension extends AbstractDoctrineExtension
      */
     private function loadPropertyInfoExtractor($entityManagerName, ContainerBuilder $container)
     {
-        $metadataFactoryService = sprintf('doctrine.orm.%s_entity_manager.metadata_factory', $entityManagerName);
+        $propertyExtractorDefinition = $container->register(sprintf('doctrine.orm.%s_entity_manager.property_info_extractor', $entityManagerName), DoctrineExtractor::class);
+        if (property_exists(DoctrineExtractor::class, 'entityManager')) {
+            $argumentId = sprintf('doctrine.orm.%s_entity_manager', $entityManagerName);
+        } else {
+            $argumentId = sprintf('doctrine.orm.%s_entity_manager.metadata_factory', $entityManagerName);
 
-        $metadataFactoryDefinition = $container->register($metadataFactoryService, 'Doctrine\Common\Persistence\Mapping\ClassMetadataFactory');
-        $metadataFactoryDefinition->setFactory([
-            new Reference(sprintf('doctrine.orm.%s_entity_manager', $entityManagerName)),
-            'getMetadataFactory',
-        ]);
-        $metadataFactoryDefinition->setPublic(false);
+            $metadataFactoryDefinition = $container->register($argumentId, ClassMetadataFactory::class);
+            $metadataFactoryDefinition->setFactory([
+                new Reference(sprintf('doctrine.orm.%s_entity_manager', $entityManagerName)),
+                'getMetadataFactory',
+            ]);
+            $metadataFactoryDefinition->setPublic(false);
+        }
 
-        $propertyExtractorDefinition = $container->register(sprintf('doctrine.orm.%s_entity_manager.property_info_extractor', $entityManagerName), 'Symfony\Bridge\Doctrine\PropertyInfo\DoctrineExtractor');
-        $propertyExtractorDefinition->addArgument(new Reference($metadataFactoryService));
+        $propertyExtractorDefinition->addArgument(new Reference($argumentId));
+
         $propertyExtractorDefinition->addTag('property_info.list_extractor', ['priority' => -1001]);
         $propertyExtractorDefinition->addTag('property_info.type_extractor', ['priority' => -999]);
     }

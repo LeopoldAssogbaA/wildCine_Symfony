@@ -15,7 +15,7 @@ use Symfony\Component\Form\Exception\UnexpectedTypeException;
 use Symfony\Component\Form\Util\ServerParams;
 
 /**
- * A request handler using PHP's super globals $_GET, $_POST and $_SERVER.
+ * A request handler using PHP super globals $_GET, $_POST and $_SERVER.
  *
  * @author Bernhard Schussek <bschussek@gmail.com>
  */
@@ -26,13 +26,13 @@ class NativeRequestHandler implements RequestHandlerInterface
     /**
      * The allowed keys of the $_FILES array.
      */
-    private static $fileKeys = array(
+    private static $fileKeys = [
         'error',
         'name',
         'size',
         'tmp_name',
         'type',
-    );
+    ];
 
     public function __construct(ServerParams $params = null)
     {
@@ -78,15 +78,15 @@ class NativeRequestHandler implements RequestHandlerInterface
                 $form->submit(null, false);
 
                 $form->addError(new FormError(
-                    \call_user_func($form->getConfig()->getOption('upload_max_size_message')),
+                    $form->getConfig()->getOption('upload_max_size_message')(),
                     null,
-                    array('{{ max }}' => $this->serverParams->getNormalizedIniPostMaxSize())
+                    ['{{ max }}' => $this->serverParams->getNormalizedIniPostMaxSize()]
                 ));
 
                 return;
             }
 
-            $fixedFiles = array();
+            $fixedFiles = [];
             foreach ($_FILES as $fileKey => $file) {
                 $fixedFiles[$fileKey] = self::stripEmptyFiles(self::fixPhpFilesArray($file));
             }
@@ -95,7 +95,7 @@ class NativeRequestHandler implements RequestHandlerInterface
                 $params = $_POST;
                 $files = $fixedFiles;
             } elseif (array_key_exists($name, $_POST) || array_key_exists($name, $fixedFiles)) {
-                $default = $form->getConfig()->getCompound() ? array() : null;
+                $default = $form->getConfig()->getCompound() ? [] : null;
                 $params = array_key_exists($name, $_POST) ? $_POST[$name] : $default;
                 $files = array_key_exists($name, $fixedFiles) ? $fixedFiles[$name] : $default;
             } else {
@@ -183,13 +183,13 @@ class NativeRequestHandler implements RequestHandlerInterface
         }
 
         foreach ($data['name'] as $key => $name) {
-            $files[$key] = self::fixPhpFilesArray(array(
+            $files[$key] = self::fixPhpFilesArray([
                 'error' => $data['error'][$key],
                 'name' => $name,
                 'type' => $data['type'][$key],
                 'tmp_name' => $data['tmp_name'][$key],
                 'size' => $data['size'][$key],
-            ));
+            ]);
         }
 
         return $files;
@@ -213,7 +213,7 @@ class NativeRequestHandler implements RequestHandlerInterface
 
         if (self::$fileKeys === $keys) {
             if (UPLOAD_ERR_NO_FILE === $data['error']) {
-                return;
+                return null;
             }
 
             return $data;

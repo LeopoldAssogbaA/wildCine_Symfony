@@ -17,14 +17,14 @@ class ProjectUrlMatcher extends Symfony\Component\Routing\Tests\Fixtures\Redirec
 
     public function match($pathinfo)
     {
-        $allow = $allowSchemes = array();
+        $allow = $allowSchemes = [];
         if ($ret = $this->doMatch($pathinfo, $allow, $allowSchemes)) {
             return $ret;
         }
         if ($allow) {
             throw new MethodNotAllowedException(array_keys($allow));
         }
-        if (!in_array($this->context->getMethod(), array('HEAD', 'GET'), true)) {
+        if (!in_array($this->context->getMethod(), ['HEAD', 'GET'], true)) {
             // no-op
         } elseif ($allowSchemes) {
             redirect_scheme:
@@ -37,8 +37,8 @@ class ProjectUrlMatcher extends Symfony\Component\Routing\Tests\Fixtures\Redirec
             } finally {
                 $this->context->setScheme($scheme);
             }
-        } elseif ('/' !== $pathinfo) {
-            $pathinfo = '/' !== $pathinfo[-1] ? $pathinfo.'/' : substr($pathinfo, 0, -1);
+        } elseif ('/' !== $trimmedPathinfo = rtrim($pathinfo, '/') ?: '/') {
+            $pathinfo = $trimmedPathinfo === $pathinfo ? $pathinfo.'/' : $trimmedPathinfo;
             if ($ret = $this->doMatch($pathinfo, $allow, $allowSchemes)) {
                 return $this->redirect($pathinfo, $ret['_route']) + $ret;
             }
@@ -50,10 +50,11 @@ class ProjectUrlMatcher extends Symfony\Component\Routing\Tests\Fixtures\Redirec
         throw new ResourceNotFoundException();
     }
 
-    private function doMatch(string $rawPathinfo, array &$allow = array(), array &$allowSchemes = array()): ?array
+    private function doMatch(string $pathinfo, array &$allow = [], array &$allowSchemes = []): array
     {
-        $allow = $allowSchemes = array();
-        $pathinfo = rawurldecode($rawPathinfo);
+        $allow = $allowSchemes = [];
+        $pathinfo = rawurldecode($pathinfo) ?: '/';
+        $trimmedPathinfo = rtrim($pathinfo, '/') ?: '/';
         $context = $this->context;
         $requestMethod = $canonicalMethod = $context->getMethod();
 
@@ -62,57 +63,72 @@ class ProjectUrlMatcher extends Symfony\Component\Routing\Tests\Fixtures\Redirec
         }
 
         $matchedPathinfo = $pathinfo;
-        $regexList = array(
+        $regexList = [
             0 => '{^(?'
                     .'|/(en|fr)/(?'
-                        .'|admin/post/(?'
-                            .'|(*:33)'
-                            .'|new(*:43)'
-                            .'|(\\d+)(*:55)'
-                            .'|(\\d+)/edit(*:72)'
-                            .'|(\\d+)/delete(*:91)'
-                        .')'
-                        .'|blog/(?'
-                            .'|(*:107)'
-                            .'|rss\\.xml(*:123)'
-                            .'|p(?'
-                                .'|age/([^/]++)(*:147)'
-                                .'|osts/([^/]++)(*:168)'
+                        .'|admin/post(?'
+                            .'|(*:32)'
+                            .'|/(?'
+                                .'|new(*:46)'
+                                .'|(\\d+)(*:58)'
+                                .'|(\\d+)/edit(*:75)'
+                                .'|(\\d+)/delete(*:94)'
                             .')'
-                            .'|comments/(\\d+)/new(*:195)'
-                            .'|search(*:209)'
+                        .')'
+                        .'|blog(?'
+                            .'|(*:110)'
+                            .'|/(?'
+                                .'|rss\\.xml(*:130)'
+                                .'|p(?'
+                                    .'|age/([^/]++)(*:154)'
+                                    .'|osts/([^/]++)(*:175)'
+                                .')'
+                                .'|comments/(\\d+)/new(*:202)'
+                                .'|search(*:216)'
+                            .')'
                         .')'
                         .'|log(?'
-                            .'|in(*:226)'
-                            .'|out(*:237)'
+                            .'|in(*:234)'
+                            .'|out(*:245)'
                         .')'
                     .')'
-                    .'|/(en|fr)?(*:256)'
-                .')$}sD',
-        );
+                    .'|/(en|fr)?(*:264)'
+                .')/?$}sD',
+        ];
 
         foreach ($regexList as $offset => $regex) {
             while (preg_match($regex, $matchedPathinfo, $matches)) {
                 switch ($m = (int) $matches['MARK']) {
                     default:
-                        $routes = array(
-                            33 => array(array('_route' => 'a', '_locale' => 'en'), array('_locale'), null, null),
-                            43 => array(array('_route' => 'b', '_locale' => 'en'), array('_locale'), null, null),
-                            55 => array(array('_route' => 'c', '_locale' => 'en'), array('_locale', 'id'), null, null),
-                            72 => array(array('_route' => 'd', '_locale' => 'en'), array('_locale', 'id'), null, null),
-                            91 => array(array('_route' => 'e', '_locale' => 'en'), array('_locale', 'id'), null, null),
-                            107 => array(array('_route' => 'f', '_locale' => 'en'), array('_locale'), null, null),
-                            123 => array(array('_route' => 'g', '_locale' => 'en'), array('_locale'), null, null),
-                            147 => array(array('_route' => 'h', '_locale' => 'en'), array('_locale', 'page'), null, null),
-                            168 => array(array('_route' => 'i', '_locale' => 'en'), array('_locale', 'page'), null, null),
-                            195 => array(array('_route' => 'j', '_locale' => 'en'), array('_locale', 'id'), null, null),
-                            209 => array(array('_route' => 'k', '_locale' => 'en'), array('_locale'), null, null),
-                            226 => array(array('_route' => 'l', '_locale' => 'en'), array('_locale'), null, null),
-                            237 => array(array('_route' => 'm', '_locale' => 'en'), array('_locale'), null, null),
-                            256 => array(array('_route' => 'n', '_locale' => 'en'), array('_locale'), null, null),
-                        );
+                        $routes = [
+                            32 => [['_route' => 'a', '_locale' => 'en'], ['_locale'], null, null, true, false],
+                            46 => [['_route' => 'b', '_locale' => 'en'], ['_locale'], null, null, false, false],
+                            58 => [['_route' => 'c', '_locale' => 'en'], ['_locale', 'id'], null, null, false, true],
+                            75 => [['_route' => 'd', '_locale' => 'en'], ['_locale', 'id'], null, null, false, false],
+                            94 => [['_route' => 'e', '_locale' => 'en'], ['_locale', 'id'], null, null, false, false],
+                            110 => [['_route' => 'f', '_locale' => 'en'], ['_locale'], null, null, true, false],
+                            130 => [['_route' => 'g', '_locale' => 'en'], ['_locale'], null, null, false, false],
+                            154 => [['_route' => 'h', '_locale' => 'en'], ['_locale', 'page'], null, null, false, true],
+                            175 => [['_route' => 'i', '_locale' => 'en'], ['_locale', 'page'], null, null, false, true],
+                            202 => [['_route' => 'j', '_locale' => 'en'], ['_locale', 'id'], null, null, false, false],
+                            216 => [['_route' => 'k', '_locale' => 'en'], ['_locale'], null, null, false, false],
+                            234 => [['_route' => 'l', '_locale' => 'en'], ['_locale'], null, null, false, false],
+                            245 => [['_route' => 'm', '_locale' => 'en'], ['_locale'], null, null, false, false],
+                            264 => [['_route' => 'n', '_locale' => 'en'], ['_locale'], null, null, false, true],
+                        ];
 
-                        list($ret, $vars, $requiredMethods, $requiredSchemes) = $routes[$m];
+                        list($ret, $vars, $requiredMethods, $requiredSchemes, $hasTrailingSlash, $hasTrailingVar) = $routes[$m];
+
+                        $hasTrailingVar = $trimmedPathinfo !== $pathinfo && $hasTrailingVar;
+                        if ('/' !== $pathinfo && !$hasTrailingVar && $hasTrailingSlash === ($trimmedPathinfo === $pathinfo)) {
+                            if ('GET' === $canonicalMethod && (!$requiredMethods || isset($requiredMethods['GET']))) {
+                                return $allow = $allowSchemes = [];
+                            }
+                            break;
+                        }
+                        if ($hasTrailingSlash && $hasTrailingVar && preg_match($regex, rtrim($matchedPathinfo, '/') ?: '/', $n) && $m === (int) $n['MARK']) {
+                            $matches = $n;
+                        }
 
                         foreach ($vars as $i => $v) {
                             if (isset($matches[1 + $i])) {
@@ -135,7 +151,7 @@ class ProjectUrlMatcher extends Symfony\Component\Routing\Tests\Fixtures\Redirec
                         return $ret;
                 }
 
-                if (256 === $m) {
+                if (264 === $m) {
                     break;
                 }
                 $regex = substr_replace($regex, 'F', $m - $offset, 1 + strlen($m));
@@ -146,6 +162,6 @@ class ProjectUrlMatcher extends Symfony\Component\Routing\Tests\Fixtures\Redirec
             throw new Symfony\Component\Routing\Exception\NoConfigurationException();
         }
 
-        return null;
+        return [];
     }
 }

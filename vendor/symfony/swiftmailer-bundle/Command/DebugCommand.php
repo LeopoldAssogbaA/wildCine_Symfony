@@ -11,7 +11,6 @@
 
 namespace Symfony\Bundle\SwiftmailerBundle\Command;
 
-use Symfony\Bundle\FrameworkBundle\Command\ContainerAwareCommand;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
@@ -23,7 +22,7 @@ use Symfony\Component\DependencyInjection\Exception\ServiceNotFoundException;
  *
  * @author Jérémy Romey <jeremy@free-agent.fr>
  */
-class DebugCommand extends ContainerAwareCommand
+class DebugCommand extends AbstractSwiftMailerCommand
 {
     protected static $defaultName = 'debug:swiftmailer';
 
@@ -72,7 +71,6 @@ EOF
 
         $mailers = $this->getContainer()->getParameter('swiftmailer.mailers');
         foreach ($mailers as $name => $mailer) {
-            $mailer = $this->getContainer()->get($mailer);
             $transport = $this->getContainer()->getParameter(sprintf('swiftmailer.mailer.%s.transport.name', $name));
             $spool = $this->getContainer()->getParameter(sprintf('swiftmailer.mailer.%s.spool.enabled', $name)) ? 'YES' : 'NO';
             $delivery = $this->getContainer()->getParameter(sprintf('swiftmailer.mailer.%s.delivery.enabled', $name)) ? 'YES' : 'NO';

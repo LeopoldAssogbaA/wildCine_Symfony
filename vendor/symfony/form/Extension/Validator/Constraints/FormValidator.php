@@ -48,14 +48,14 @@ class FormValidator extends ConstraintValidator
 
             // Validate the data against its own constraints
             if ($form->isRoot() && (\is_object($data) || \is_array($data))) {
-                if (\is_array($groups) && \count($groups) > 0 || $groups instanceof GroupSequence && \count($groups->groups) > 0) {
+                if (($groups && \is_array($groups)) || ($groups instanceof GroupSequence && $groups->groups)) {
                     $validator->atPath('data')->validate($form->getData(), null, $groups);
                 }
             }
 
             // Validate the data against the constraints defined
             // in the form
-            $constraints = $config->getOption('constraints', array());
+            $constraints = $config->getOption('constraints', []);
 
             if ($groups instanceof GroupSequence) {
                 $validator->atPath('data')->validate($form->getData(), $constraints, $groups);
@@ -115,7 +115,7 @@ class FormValidator extends ConstraintValidator
 
                 $this->context->setConstraint($constraint);
                 $this->context->buildViolation($config->getOption('invalid_message'))
-                    ->setParameters(array_replace(array('{{ value }}' => $clientDataAsString), $config->getOption('invalid_message_parameters')))
+                    ->setParameters(array_replace(['{{ value }}' => $clientDataAsString], $config->getOption('invalid_message_parameters')))
                     ->setInvalidValue($form->getViewData())
                     ->setCode(Form::NOT_SYNCHRONIZED_ERROR)
                     ->setCause($form->getTransformationFailure())
@@ -127,7 +127,7 @@ class FormValidator extends ConstraintValidator
         if (!$config->getOption('allow_extra_fields') && \count($form->getExtraData()) > 0) {
             $this->context->setConstraint($constraint);
             $this->context->buildViolation($config->getOption('extra_fields_message'))
-                ->setParameter('{{ extra_fields }}', implode('", "', array_keys($form->getExtraData())))
+                ->setParameter('{{ extra_fields }}', '"'.implode('", "', array_keys($form->getExtraData())).'"')
                 ->setInvalidValue($form->getExtraData())
                 ->setCode(Form::NO_SUCH_FIELD_ERROR)
                 ->addViolation();
@@ -166,7 +166,7 @@ class FormValidator extends ConstraintValidator
             $form = $form->getParent();
         } while (null !== $form);
 
-        return array(Constraint::DEFAULT_GROUP);
+        return [Constraint::DEFAULT_GROUP];
     }
 
     /**
@@ -180,7 +180,7 @@ class FormValidator extends ConstraintValidator
     private static function resolveValidationGroups($groups, FormInterface $form)
     {
         if (!\is_string($groups) && \is_callable($groups)) {
-            $groups = \call_user_func($groups, $form);
+            $groups = $groups($form);
         }
 
         if ($groups instanceof GroupSequence) {

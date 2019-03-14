@@ -23,7 +23,7 @@ use Symfony\Component\DependencyInjection\Reference;
  */
 class InlineServiceDefinitionsPass extends AbstractRecursivePass implements RepeatablePassInterface
 {
-    private $cloningIds = array();
+    private $cloningIds = [];
 
     /**
      * {@inheritdoc}
@@ -93,8 +93,12 @@ class InlineServiceDefinitionsPass extends AbstractRecursivePass implements Repe
         }
 
         if (!$definition->isShared()) {
+            if (!$graph->hasNode($id)) {
+                return true;
+            }
+
             foreach ($graph->getNode($id)->getInEdges() as $edge) {
-                if ($edge->isWeak()) {
+                if ($edge->isWeak() || $edge->isLazy()) {
                     return false;
                 }
             }
@@ -114,12 +118,18 @@ class InlineServiceDefinitionsPass extends AbstractRecursivePass implements Repe
             return false;
         }
 
-        $ids = array();
+        $ids = [];
+        $isReferencedByConstructor = false;
         foreach ($graph->getNode($id)->getInEdges() as $edge) {
-            if ($edge->isWeak()) {
+            $isReferencedByConstructor = $isReferencedByConstructor || $edge->isReferencedByConstructor();
+            if ($edge->isWeak() || $edge->isLazy()) {
                 return false;
             }
             $ids[] = $edge->getSourceNode()->getId();
+        }
+
+        if (!$ids) {
+            return true;
         }
 
         if (\count(array_unique($ids)) > 1) {
@@ -130,6 +140,10 @@ class InlineServiceDefinitionsPass extends AbstractRecursivePass implements Repe
             return false;
         }
 
-        return !$ids || $this->container->getDefinition($ids[0])->isShared();
+        if ($isReferencedByConstructor && $this->container->getDefinition($ids[0])->isLazy() && ($definition->getProperties() || $definition->getMethodCalls() || $definition->getConfigurator())) {
+            return false;
+        }
+
+        return $this->container->getDefinition($ids[0])->isShared();
     }
 }

@@ -32,7 +32,7 @@ class SymfonyBundle
 
     public function getClassNames(): array
     {
-        $all = 'uninstall' === $this->operation;
+        $uninstall = 'uninstall' === $this->operation;
         $classes = [];
         $autoload = $this->package->getAutoload();
         foreach (['psr-4' => true, 'psr-0' => false] as $psr => $isPsr4) {
@@ -41,22 +41,17 @@ class SymfonyBundle
             }
 
             foreach ($autoload[$psr] as $namespace => $paths) {
-                if (!is_array($paths)) {
+                if (!\is_array($paths)) {
                     $paths = [$paths];
                 }
                 foreach ($paths as $path) {
                     foreach ($this->extractClassNames($namespace) as $class) {
-                        if (!$all) {
-                            // we only check class existence on install as we do have the code available
-                            if (!$this->checkClassExists($class, $path, $isPsr4)) {
-                                continue;
-                            }
-
-                            return [$class];
+                        // we only check class existence on install as we do have the code available
+                        // in contrast to uninstall operation
+                        if (!$uninstall && !$this->checkClassExists($class, $path, $isPsr4)) {
+                            continue;
                         }
 
-                        // on uninstall, we gather all possible values (as we don't have access to the code anymore)
-                        // and try to remove them all from bundles.php
                         $classes[] = $class;
                     }
                 }
@@ -71,13 +66,13 @@ class SymfonyBundle
         $namespace = trim($namespace, '\\');
         $class = $namespace.'\\';
         $parts = explode('\\', $namespace);
-        $suffix = $parts[count($parts) - 1];
+        $suffix = $parts[\count($parts) - 1];
         if ('Bundle' !== substr($suffix, -6)) {
             $suffix .= 'Bundle';
         }
         $classes = [$class.$suffix];
         $acc = '';
-        foreach (array_slice($parts, 0, -1) as $part) {
+        foreach (\array_slice($parts, 0, -1) as $part) {
             if ('Bundle' === $part) {
                 continue;
             }
@@ -93,9 +88,9 @@ class SymfonyBundle
     {
         $classPath = ($this->vendorDir ? $this->vendorDir.'/' : '').$this->package->getPrettyName().'/'.$path.'/';
         $parts = explode('\\', $class);
-        $class = $parts[count($parts) - 1];
+        $class = $parts[\count($parts) - 1];
         if (!$isPsr4) {
-            $classPath .= str_replace('\\', '', implode('/', array_slice($parts, 0, -1))).'/';
+            $classPath .= str_replace('\\', '', implode('/', \array_slice($parts, 0, -1))).'/';
         }
         $classPath .= str_replace('\\', '/', $class).'.php';
 

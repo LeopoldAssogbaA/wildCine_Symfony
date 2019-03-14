@@ -4,7 +4,9 @@ The Symfony MakerBundle
 Symfony Maker helps you create empty commands, controllers, form classes,
 tests and more so you can forget about writing boilerplate code. This
 bundle is an alternative to `SensioGeneratorBundle`_ for modern Symfony
-applications and requires using Symfony 3.4 or newer and `Symfony Flex`_.
+applications and requires using Symfony 3.4 or newer. This bundle
+assumes you're using a standard Symfony 4 directory structure, but many
+commands can generate code into any application.
 
 Installation
 ------------
@@ -49,7 +51,7 @@ the root namespace that is used to "guess" what classes you want to generate:
 
 .. code-block:: yaml
 
-    # config/packages/maker.yaml
+    # config/packages/dev/maker.yaml
     # create this file if you need to configure anything
     maker:
         # tell MakerBundle that all of your classes lives in an
@@ -83,6 +85,5 @@ adding your *own* maker command is so easy, that we recommend that. However, if 
 is some extension point that you'd like, please open an issue so we can discuss!
 
 .. _`SensioGeneratorBundle`: https://github.com/sensiolabs/SensioGeneratorBundle
-.. _`Symfony Flex`: https://symfony.com/doc/current/setup/flex.html
 .. _`AbstractMaker`: https://github.com/symfony/maker-bundle/blob/master/src/Maker/AbstractMaker.php
 .. _`core maker commands`: https://github.com/symfony/maker-bundle/tree/master/src/Maker

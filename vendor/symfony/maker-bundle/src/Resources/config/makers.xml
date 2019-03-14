@@ -8,6 +8,10 @@
             <defaults public="false" />
 
             <service id="maker.maker.make_authenticator" class="Symfony\Bundle\MakerBundle\Maker\MakeAuthenticator">
+                <argument type="service" id="maker.file_manager" />
+                <argument type="service" id="maker.security_config_updater" />
+                <argument type="service" id="maker.generator" />
+                <argument type="service" id="maker.doctrine_helper" />
                 <tag name="maker.command" />
             </service>
 
@@ -22,6 +26,7 @@
 
             <service id="maker.maker.make_crud" class="Symfony\Bundle\MakerBundle\Maker\MakeCrud">
                 <argument type="service" id="maker.doctrine_helper" />
+                <argument type="service" id="maker.renderer.form_type_renderer" />
                 <tag name="maker.command" />
             </service>
 
@@ -39,6 +44,7 @@
 
             <service id="maker.maker.make_form" class="Symfony\Bundle\MakerBundle\Maker\MakeForm">
                 <argument type="service" id="maker.doctrine_helper" />
+                <argument type="service" id="maker.renderer.form_type_renderer" />
                 <tag name="maker.command" />
             </service>
 
@@ -46,7 +52,18 @@
                 <tag name="maker.command" />
             </service>
 
+            <service id="maker.maker.make_registration_form" class="Symfony\Bundle\MakerBundle\Maker\MakeRegistrationForm">
+                <argument type="service" id="maker.file_manager" />
+                <argument type="service" id="maker.renderer.form_type_renderer" />
+                <argument type="service" id="router" />
+                <tag name="maker.command" />
+            </service>
+
             <service id="maker.maker.make_serializer_encoder" class="Symfony\Bundle\MakerBundle\Maker\MakeSerializerEncoder">
+                <tag name="maker.command" />
+            </service>
+
+            <service id="maker.maker.make_serializer_normalizer" class="Symfony\Bundle\MakerBundle\Maker\MakeSerializerNormalizer">
                 <tag name="maker.command" />
             </service>
 

@@ -19,6 +19,7 @@ use Symfony\Component\Process\InputStream;
 
 /**
  * @author Sadicov Vladimir <sadikoff@gmail.com>
+ * @author Nicolas Philippe <nikophil@gmail.com>
  *
  * @internal
  */
@@ -33,8 +34,6 @@ final class MakerTestEnvironment
     private $flexPath;
 
     private $path;
-
-    private $snapshotFile;
 
     /**
      * @var MakerTestProcess
@@ -58,8 +57,6 @@ final class MakerTestEnvironment
         $this->flexPath = $this->cachePath.'/flex_project';
 
         $this->path = $this->cachePath.\DIRECTORY_SEPARATOR.$testDetails->getUniqueCacheDirectoryName();
-
-        $this->snapshotFile = $this->path.\DIRECTORY_SEPARATOR.basename($this->path).'.json';
     }
 
     public static function create(MakerTestDetails $testDetails): self
@@ -72,6 +69,56 @@ final class MakerTestEnvironment
         return $this->path;
     }
 
+    private function changeRootNamespaceIfNeeded()
+    {
+        if ('App' === ($rootNamespace = $this->testDetails->getRootNamespace())) {
+            return;
+        }
+
+        $replacements = [
+            [
+                'filename' => 'composer.json',
+                'find' => '"App\\\\": "src/"',
+                'replace' => '"'.$rootNamespace.'\\\\": "src/"',
+            ],
+            [
+                'filename' => 'src/Kernel.php',
+                'find' => 'namespace App',
+                'replace' => 'namespace '.$rootNamespace,
+            ],
+            [
+                'filename' => 'bin/console',
+                'find' => 'use App\\Kernel',
+                'replace' => 'use '.$rootNamespace.'\\Kernel',
+            ],
+            [
+                'filename' => 'public/index.php',
+                'find' => 'use App\\Kernel',
+                'replace' => 'use '.$rootNamespace.'\\Kernel',
+            ],
+            [
+                'filename' => 'config/services.yaml',
+                'find' => 'App\\',
+                'replace' => $rootNamespace.'\\',
+            ],
+            [
+                'filename' => '.env.test',
+                'find' => 'KERNEL_CLASS=\'App\Kernel\'',
+                'replace' => 'KERNEL_CLASS=\''.$rootNamespace.'\Kernel\'',
+            ],
+        ];
+
+        if ($this->fs->exists($this->path.'/config/packages/doctrine.yaml')) {
+            $replacements[] = [
+                    'filename' => 'config/packages/doctrine.yaml',
+                    'find' => 'App',
+                    'replace' => $rootNamespace,
+                ];
+        }
+
+        $this->processReplacements($replacements, $this->path);
+    }
+
     public function prepare()
     {
         if (!$this->fs->exists($this->flexPath)) {
@@ -80,24 +127,32 @@ final class MakerTestEnvironment
 
         if (!$this->fs->exists($this->path)) {
             try {
-                $this->fs->mirror($this->flexPath, $this->path);
+                // lets do some magic here git is faster than copy
+                MakerTestProcess::create(sprintf('git clone "%s" "%s"', $this->flexPath, $this->path), \dirname($this->flexPath))
+                    ->run();
 
                 // install any missing dependencies
-                if ($dependencies = $this->testDetails->getDependencies()) {
+                $dependencies = $this->determineMissingDependencies();
+                if ($dependencies) {
                     MakerTestProcess::create(sprintf('composer require %s', implode(' ', $dependencies)), $this->path)
                         ->run();
                 }
 
-                $this->createSnapshot(true);
+                $this->changeRootNamespaceIfNeeded();
+
+                file_put_contents($this->path.'/.gitignore', "var/cache/\nvendor/\n");
+
+                MakerTestProcess::create('git diff --quiet || ( git config user.name "symfony" && git config user.email "test@symfony.com" && git add . && git commit -a -m "second commit" )',
+                    $this->path
+                )->run();
             } catch (ProcessFailedException $e) {
                 $this->fs->remove($this->path);
 
                 throw $e;
             }
+        } else {
+            MakerTestProcess::create('git reset --hard && git clean -fd', $this->path)->run();
         }
-
-        MakerTestProcess::create('composer dump-autoload', $this->path)
-            ->run();
 
         if (null !== $this->testDetails->getFixtureFilesPath()) {
             // move fixture files into directory
@@ -118,18 +173,13 @@ final class MakerTestEnvironment
         if ($ignoredFiles = $this->testDetails->getFilesToDelete()) {
             foreach ($ignoredFiles as $file) {
                 if (file_exists($this->path.'/'.$file)) {
-                    $this->fs->rename($this->path.'/'.$file, $this->path.'/'.$file.'.deleted');
+                    $this->fs->remove($this->path.'/'.$file);
                 }
             }
         }
 
-        foreach ($this->testDetails->getFilesToRevert() as $file) {
-            if (!file_exists($this->path.'/'.$file)) {
-                throw new \Exception(sprintf('Cannot find "%s"', $file));
-            }
-
-            $this->fs->copy($this->path.'/'.$file, $this->path.'/'.$file.'.original');
-        }
+        MakerTestProcess::create('composer dump-autoload', $this->path)
+            ->run();
     }
 
     private function preMake()
@@ -144,8 +194,8 @@ final class MakerTestEnvironment
     {
         $this->preMake();
 
-        MakerTestProcess::create('php bin/console cache:clear --no-ansi', $this->path)
-                        ->run();
+        // Lets remove cache
+        $this->fs->remove($this->path.'/var/cache');
 
         // We don't need ansi coloring in tests!
         $testProcess = MakerTestProcess::create(
@@ -213,9 +263,6 @@ final class MakerTestEnvironment
 
     public function runInternalTests()
     {
-        MakerTestProcess::create('php bin/console cache:clear', $this->path)
-                        ->run();
-
         $finder = new Finder();
         $finder->in($this->path.'/tests')->files();
         if ($finder->count() > 0) {
@@ -255,60 +302,9 @@ final class MakerTestEnvironment
         }
     }
 
-    public function reset()
-    {
-        foreach ($this->testDetails->getFilesToRevert() as $file) {
-            if (!file_exists($this->path.'/'.$file.'.original')) {
-                throw new \Exception(sprintf('Cannot find original file for "%s"', $file));
-            }
-
-            $this->fs->rename($this->path.'/'.$file.'.original', $this->path.'/'.$file, true);
-        }
-
-        $cleanSnapshot = json_decode(file_get_contents($this->snapshotFile));
-        $currentSnapshot = $this->createSnapshot();
-
-        $diff = array_diff($currentSnapshot, $cleanSnapshot);
-
-        if (\count($diff)) {
-            $this->fs->remove($diff);
-        }
-
-        if ($ignoredFiles = $this->testDetails->getFilesToDelete()) {
-            foreach ($ignoredFiles as $file) {
-                if (file_exists($this->path.'/'.$file.'.deleted')) {
-                    $this->fs->rename($this->path.'/'.$file.'.deleted', $this->path.'/'.$file);
-                }
-            }
-        }
-
-        // no need to revert post make replacements: if something was replaced
-        // "post make", then it was a generated file, which will be deleted anyways
-        $this->revertReplacements($this->testDetails->getReplacements(), $this->path);
-    }
-
-    private function createSnapshot($save = false): array
-    {
-        $snapshot = [];
-        $finder = new Finder();
-        $finder->files()->in($this->path)->exclude(['vendor', 'var/cache', 'var/log']);
-        if ($finder->count() > 0) {
-            foreach ($finder as $file) {
-                $snapshot[] = $file->getPathname();
-            }
-            $snapshot[] = $this->snapshotFile;
-
-            if ($save) {
-                $this->fs->dumpFile($this->snapshotFile, json_encode($snapshot));
-            }
-        }
-
-        return $snapshot;
-    }
-
     private function buildFlexSkeleton()
     {
-        MakerTestProcess::create('composer create-project symfony/skeleton flex_project', $this->cachePath)
+        MakerTestProcess::create('composer create-project symfony/skeleton flex_project --prefer-dist --no-progress', $this->cachePath)
                         ->run();
 
         $rootPath = str_replace('\\', '\\\\', realpath(__DIR__.'/../..'));
@@ -335,24 +331,25 @@ final class MakerTestEnvironment
         $this->processReplacements($replacements, $this->flexPath);
 
         // fetch a few packages needed for testing
-        MakerTestProcess::create('composer require phpunit browser-kit symfony/css-selector', $this->flexPath)
+        MakerTestProcess::create('composer require phpunit browser-kit symfony/css-selector --prefer-dist --no-progress --no-suggest', $this->flexPath)
                         ->run();
 
-        MakerTestProcess::create('php bin/console cache:clear --no-warmup', $this->flexPath)
-                        ->run();
-    }
+        // temporarily ignoring indirect deprecations - see #237
+        $replacements = [
+            [
+                'filename' => '.env.test',
+                'find' => 'SYMFONY_DEPRECATIONS_HELPER=999999',
+                'replace' => 'SYMFONY_DEPRECATIONS_HELPER=weak_vendors',
+            ],
+        ];
+        $this->processReplacements($replacements, $this->flexPath);
+        // end of temp code
 
-    private function revertReplacements(array $replacements, $rootDir)
-    {
-        foreach ($replacements as $replacement) {
-            $path = $rootDir.'/'.$replacement['filename'];
-            $contents = file_get_contents($path);
-            if (false === strpos($contents, $replacement['replace'])) {
-                continue;
-            }
+        file_put_contents($this->flexPath.'/.gitignore', "var/cache/\n");
 
-            file_put_contents($path, str_replace($replacement['replace'], $replacement['find'], $contents));
-        }
+        MakerTestProcess::create('git init && git config user.name "symfony" && git config user.email "test@symfony.com" && git add . && git commit -a -m "first commit"',
+            $this->flexPath
+        )->run();
     }
 
     private function processReplacements(array $replacements, $rootDir)
@@ -371,5 +368,37 @@ final class MakerTestEnvironment
 
             file_put_contents($path, str_replace($replacement['find'], $replacement['replace'], $contents));
         }
+    }
+
+    /**
+     * Executes the DependencyBuilder for the Maker command inside the
+     * actual project, so we know exactly what dependencies we need or
+     * don't need.
+     */
+    private function determineMissingDependencies(): array
+    {
+        $depBuilder = $this->testDetails->getDependencyBuilder();
+        file_put_contents($this->path.'/dep_builder', serialize($depBuilder));
+        file_put_contents($this->path.'/dep_runner.php', '<?php
+
+require __DIR__."/vendor/autoload.php";
+$depBuilder = unserialize(file_get_contents("dep_builder"));
+$missingDependencies = array_merge(
+    $depBuilder->getMissingDependencies(),
+    $depBuilder->getMissingDevDependencies()
+);
+echo json_encode($missingDependencies);
+        ');
+
+        $process = MakerTestProcess::create('php dep_runner.php', $this->path)->run();
+        $data = json_decode($process->getOutput(), true);
+        if (null === $data) {
+            throw new \Exception('Could not determine dependencies');
+        }
+
+        unlink($this->path.'/dep_builder');
+        unlink($this->path.'/dep_runner.php');
+
+        return array_merge($data, $this->testDetails->getExtraDependencies());
     }
 }

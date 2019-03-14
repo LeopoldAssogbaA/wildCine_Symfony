@@ -58,18 +58,21 @@ class DebugProcessorTest extends TestCase
 
         $this->assertCount(2, $processor->getLogs($request));
         $this->assertSame(1, $processor->countErrors($request));
+
+        $this->assertCount(0, $processor->getLogs(new Request()));
+        $this->assertSame(0, $processor->countErrors(new Request()));
     }
 
     private function getRecord($level = Logger::WARNING, $message = 'test')
     {
-        return array(
+        return [
             'message' => $message,
-            'context' => array(),
+            'context' => [],
             'level' => $level,
             'level_name' => Logger::getLevelName($level),
             'channel' => 'test',
             'datetime' => new \DateTime(),
-            'extra' => array(),
-        );
+            'extra' => [],
+        ];
     }
 }

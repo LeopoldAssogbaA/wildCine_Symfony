@@ -11,8 +11,8 @@
 
 namespace Symfony\Bundle\MakerBundle;
 
-use Symfony\Component\DependencyInjection\Container;
 use Doctrine\Common\Inflector\Inflector;
+use Symfony\Component\DependencyInjection\Container;
 
 /**
  * @author Javier Eguiluz <javier.eguiluz@gmail.com>
@@ -204,5 +204,10 @@ final class Str
         sort($arr2);
 
         return $arr1[0] == $arr2[0];
+    }
+
+    public static function asHumanWords(string $variableName): string
+    {
+        return implode(' ', preg_split('/(?=[A-Z])/', $variableName));
     }
 }

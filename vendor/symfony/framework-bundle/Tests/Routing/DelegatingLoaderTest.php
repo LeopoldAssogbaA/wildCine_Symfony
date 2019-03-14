@@ -25,7 +25,6 @@ class DelegatingLoaderTest extends TestCase
     /**
      * @group legacy
      * @expectedDeprecation Referencing controllers with foo:bar:baz is deprecated since Symfony 4.1, use "some_parsed::controller" instead.
-     * @expectedDeprecation Referencing controllers with a single colon is deprecated since Symfony 4.1, use "foo::baz" instead.
      */
     public function testLoad()
     {
@@ -49,9 +48,9 @@ class DelegatingLoaderTest extends TestCase
             ->willReturn($loader);
 
         $routeCollection = new RouteCollection();
-        $routeCollection->add('foo', new Route('/', array('_controller' => 'foo:bar:baz')));
-        $routeCollection->add('bar', new Route('/', array('_controller' => 'foo::baz')));
-        $routeCollection->add('baz', new Route('/', array('_controller' => 'foo:baz')));
+        $routeCollection->add('foo', new Route('/', ['_controller' => 'foo:bar:baz']));
+        $routeCollection->add('bar', new Route('/', ['_controller' => 'foo::baz']));
+        $routeCollection->add('baz', new Route('/', ['_controller' => 'foo:baz']));
 
         $loader->expects($this->once())
             ->method('load')
