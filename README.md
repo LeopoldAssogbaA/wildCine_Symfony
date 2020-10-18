@@ -37,6 +37,6 @@ Merci
 
 CodeWars:
 
-Lien vers ma solution: https://www.codewars.com/kata/reviews/554245a044e65ac10f00006b/groups/583483375961c22a4f0003fd
+Lien vers ma solution: <a href="https://www.codewars.com/kata/reviews/554245a044e65ac10f00006b/groups/583483375961c22a4f0003fd" raget="_blank" ref="noreferrer noopener">ici</a>
 
-Lien vers mon profil: https://www.codewars.com/users/L%C3%A9opold%20/completed
+Lien vers mon profil: <a href="https://www.codewars.com/users/L%C3%A9opold%20/completed" raget="_blank" ref="noreferrer noopener">ici</a>
